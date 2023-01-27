@@ -62,6 +62,11 @@ int main(void)
   /* Configure the system clock to 200 MHz */
   SystemClock_Config();
 
+  /* Init User Button */
+  BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
+
+  while(BSP_PB_GetState(BUTTON_KEY) != GPIO_PIN_SET) {}; // wait user button push
+
   /* Init the STemWin GUI Library */
   BSP_SDRAM_Init(); /* Initializes the SDRAM device */
   __HAL_RCC_CRC_CLK_ENABLE(); /* Enable the CRC Module */
