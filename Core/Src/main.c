@@ -42,7 +42,7 @@ static void CPU_CACHE_Enable(void);
   * @brief  Main program
   * @param  None
   * @retval None
-  */ 
+  */
 int main(void)
 {
   /* Configure the MPU attributes */
@@ -57,64 +57,17 @@ int main(void)
        - Set NVIC Group Priority to 4
        - Global MSP (MCU Support Package) initialization
      */
-  HAL_Init();  
-  
-  /* Configure the system clock to 200 MHz */
-  SystemClock_Config(); 
-  
-  /* Configure LED1 */
-  BSP_LED_Init(LED1);
+  HAL_Init();
 
-  /***********************************************************/
-  
-  /* Compute the prescaler value to have TIM3 counter clock equal to 10 KHz */
-  uwPrescalerValue = (uint32_t) ((SystemCoreClock /2) / 10000) - 1;
-  
-  /* Set TIMx instance */
-  TimHandle.Instance = TIM3;
-   
-  /* Initialize TIM3 peripheral as follows:
-       + Period = 500 - 1
-       + Prescaler = ((SystemCoreClock/2)/10000) - 1
-       + ClockDivision = 0
-       + Counter direction = Up
-  */
-  TimHandle.Init.Period = 500 - 1;
-  TimHandle.Init.Prescaler = uwPrescalerValue;
-  TimHandle.Init.ClockDivision = 0;
-  TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
-  if(HAL_TIM_Base_Init(&TimHandle) != HAL_OK)
-  {
-    while(1) 
-    {
-    }
-  }
-  
-  /*##-2- Start the TIM Base generation in interrupt mode ####################*/
-  /* Start Channel1 */
-  if(HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
-  {
-    while(1) 
-    {
-    }
-  }
-  
-  /***********************************************************/
-  
+  /* Configure the system clock to 200 MHz */
+  SystemClock_Config();
+
   /* Init the STemWin GUI Library */
   BSP_SDRAM_Init(); /* Initializes the SDRAM device */
   __HAL_RCC_CRC_CLK_ENABLE(); /* Enable the CRC Module */
   GUI_Init();
-  
   GUI_DispStringAt("Starting...", 0, 0);
 
-  GUI_Initialized = 1;
-  
-  /* Activate the use of memory device feature */
-  WM_SetCreateFlags(WM_CF_MEMDEV);
-    
-  MainTask();
-  
   /* Infinite loop */
   for(;;);
 }
