@@ -28,6 +28,11 @@ uint8_t GUI_Initialized = 0;
 TIM_HandleTypeDef TimHandle;
 uint32_t uwPrescalerValue = 0;
 
+UART_HandleTypeDef uart1;
+
+char inbuf[30] = {0};
+char outbuf[30] = {0};
+
 /* Private function prototypes -----------------------------------------------*/
 static void MPU_Config(void);
 static void SystemClock_Config(void);
@@ -37,6 +42,23 @@ extern void MainTask(void);
 static void CPU_CACHE_Enable(void);
 
 /* Private functions ---------------------------------------------------------*/
+
+void init_usbuart()
+{
+    /* enable the clock of the used peripherial instance */
+    __HAL_RCC_USART1_CLK_ENABLE();
+
+    /* defining the UART configuration structure */
+    uart1.Instance = USART1;
+    uart1.Init.BaudRate = 115200;
+    uart1.Init.WordLength = UART_WORDLENGTH_8B;
+    uart1.Init.StopBits = UART_STOPBITS_1;
+    uart1.Init.Parity = UART_PARITY_NONE;
+    uart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    uart1.Init.Mode = UART_MODE_TX_RX;
+
+    BSP_COM_Init(COM1, &uart1);
+}
 
 /**
   * @brief  Main program
@@ -64,6 +86,7 @@ int main(void)
 
   /* Init User Button */
   BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
+  init_usbuart();
 
   while(BSP_PB_GetState(BUTTON_KEY) != GPIO_PIN_SET) {}; // wait user button push
 
@@ -74,7 +97,10 @@ int main(void)
   GUI_DispStringAt("Starting...", 0, 0);
 
   /* Infinite loop */
-  for(;;);
+  for(;;) {
+    HAL_UART_Receive(&uart1, inbuf, 1, 0xFFFF);
+    HAL_UART_Transmit(&uart1, inbuf, 1, 0xFFFF);
+  }
 }
 
 /**
