@@ -29,9 +29,18 @@ TIM_HandleTypeDef TimHandle;
 uint32_t uwPrescalerValue = 0;
 
 UART_HandleTypeDef uart1;
+SPI_HandleTypeDef spi2;
+SPI_HandleTypeDef spi5;
 
 char inbuf[30] = {0};
 char outbuf[30] = {0};
+
+enum {
+	TRANSFER_WAIT,
+	TRANSFER_COMPLETE,
+	TRANSFER_ERROR
+};
+__IO uint32_t wTransferState = TRANSFER_WAIT;
 
 /* Private function prototypes -----------------------------------------------*/
 static void MPU_Config(void);
@@ -42,6 +51,86 @@ extern void MainTask(void);
 static void CPU_CACHE_Enable(void);
 
 /* Private functions ---------------------------------------------------------*/
+
+void init_spi5()
+{
+	__HAL_RCC_GPIOF_CLK_ENABLE();
+	__HAL_RCC_SPI5_CLK_ENABLE();
+
+	spi5.Instance = SPI5;
+
+	spi5.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+	spi5.Init.Direction         = SPI_DIRECTION_2LINES;
+	spi5.Init.CLKPhase          = SPI_PHASE_1EDGE;
+	spi5.Init.CLKPolarity       = SPI_POLARITY_HIGH;
+	spi5.Init.DataSize          = SPI_DATASIZE_8BIT;
+	spi5.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+	spi5.Init.TIMode            = SPI_TIMODE_DISABLE;
+	spi5.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+	spi5.Init.CRCPolynomial     = 7;
+	spi5.Init.NSS               = SPI_NSS_SOFT;
+	spi5.Init.Mode = SPI_MODE_MASTER;
+
+	if (HAL_SPI_Init(&spi5) != HAL_OK) {
+    while(1);
+	}
+
+	GPIO_InitTypeDef  GPIO_InitStruct = {0};
+
+	GPIO_InitStruct.Pin       = GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
+	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull      = GPIO_PULLUP;
+	GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF5_SPI5;
+	HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+}
+
+void init_spi2()
+{
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOI_CLK_ENABLE();
+	__HAL_RCC_SPI2_CLK_ENABLE();
+
+	/*## Configure the SPI ##################################################*/
+  spi2.Instance = SPI2;
+
+  spi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+  spi2.Init.Direction         = SPI_DIRECTION_2LINES;
+  spi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
+  spi2.Init.CLKPolarity       = SPI_POLARITY_HIGH;
+  spi2.Init.DataSize          = SPI_DATASIZE_8BIT;
+  spi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+  spi2.Init.TIMode            = SPI_TIMODE_DISABLE;
+  spi2.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+  spi2.Init.CRCPolynomial     = 7;
+  spi2.Init.NSS               = SPI_NSS_SOFT;
+  spi2.Init.Mode = SPI_MODE_SLAVE;
+
+  if (HAL_SPI_Init(&spi2) != HAL_OK) {
+    while(1);
+  }
+
+  /*## Configure the GPIO ##################################################*/
+  GPIO_InitTypeDef  GPIO_InitStruct = {0};
+
+  GPIO_InitStruct.Pin       = GPIO_PIN_14 | GPIO_PIN_15;
+  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull      = GPIO_PULLUP;
+  GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin       = GPIO_PIN_1;
+  GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull      = GPIO_PULLUP;
+  GPIO_InitStruct.Speed     = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+  HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
+
+  /* NVIC for SPI */
+  HAL_NVIC_SetPriority(SPI2_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(SPI2_IRQn);
+}
 
 void init_usbuart()
 {
@@ -87,6 +176,8 @@ int main(void)
   /* Init User Button */
   BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
   init_usbuart();
+  init_spi2();
+  init_spi5();
 
   while(BSP_PB_GetState(BUTTON_KEY) != GPIO_PIN_SET) {}; // wait user button push
 
@@ -99,8 +190,38 @@ int main(void)
   /* Infinite loop */
   for(;;) {
     HAL_UART_Receive(&uart1, inbuf, 1, 0xFFFF);
-    HAL_UART_Transmit(&uart1, inbuf, 1, 0xFFFF);
+    HAL_SPI_Receive_IT(&spi2, outbuf, 1);
+    HAL_SPI_Transmit(&spi5, inbuf, 1, HAL_MAX_DELAY);
+
+    while (wTransferState != TRANSFER_COMPLETE) {};
+    HAL_UART_Transmit(&uart1, outbuf, 1, 0xFFFF);
+    wTransferState = TRANSFER_WAIT;
   }
+}
+
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  //wTransferState = TRANSFER_COMPLETE;
+}
+
+void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  wTransferState = TRANSFER_COMPLETE;
+}
+
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  //wTransferState = TRANSFER_COMPLETE;
+}
+
+void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
+{
+  wTransferState = TRANSFER_ERROR;
+}
+
+void SPI2_IRQHandler(void)
+{
+  HAL_SPI_IRQHandler(&spi2);
 }
 
 /**
