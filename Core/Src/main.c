@@ -31,6 +31,7 @@ uint32_t uwPrescalerValue = 0;
 UART_HandleTypeDef uart1;
 SPI_HandleTypeDef spi2;
 SPI_HandleTypeDef spi5;
+I2C_HandleTypeDef i2c1;
 
 char inbuf[30] = {0};
 char outbuf[30] = {0};
@@ -149,6 +150,40 @@ void init_usbuart()
     BSP_COM_Init(COM1, &uart1);
 }
 
+void init_i2c1()
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  RCC_PeriphCLKInitTypeDef RCC_PeriphCLKInitStruct = {0};
+
+  // Configure the I2C clock source. The clock is derived from the SYSCLK.
+  RCC_PeriphCLKInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
+  RCC_PeriphCLKInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+  HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphCLKInitStruct);
+
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_I2C1_CLK_ENABLE();
+
+  i2c1.Instance = I2C1;
+  i2c1.Init.Timing = 0x00C0EAFF; // 100kHz
+  i2c1.Init.OwnAddress1 = 0;
+  i2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  i2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  i2c1.Init.OwnAddress2 = 0;
+  i2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  i2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+
+  if (HAL_I2C_Init(&i2c1) != HAL_OK) {
+    while(1);
+  }
+
+  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
 /**
   * @brief  Main program
   * @param  None
@@ -178,8 +213,15 @@ int main(void)
   init_usbuart();
   init_spi2();
   init_spi5();
+  init_i2c1();
 
   while(BSP_PB_GetState(BUTTON_KEY) != GPIO_PIN_SET) {}; // wait user button push
+
+  uint8_t check = 0;
+  HAL_I2C_Mem_Read(&i2c1, 0xD0, 0x75, 1, &check, 1, 100);
+  if (check != 104)  { // 0x68 will be returned by the sensor if everything goes well
+    while(1);
+  }
 
   /* Init the STemWin GUI Library */
   BSP_SDRAM_Init(); /* Initializes the SDRAM device */
