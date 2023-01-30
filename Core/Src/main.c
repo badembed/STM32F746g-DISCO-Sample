@@ -18,6 +18,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "mpu6050.h"
 #include "WM.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,6 +36,8 @@ I2C_HandleTypeDef i2c1;
 
 char inbuf[30] = {0};
 char outbuf[30] = {0};
+
+MPU6050_t mpu6050_data;
 
 enum {
 	TRANSFER_WAIT,
@@ -222,12 +225,22 @@ int main(void)
   if (check != 104)  { // 0x68 will be returned by the sensor if everything goes well
     while(1);
   }
+  MPU6050_Init(&i2c1);
+
 
   /* Init the STemWin GUI Library */
   BSP_SDRAM_Init(); /* Initializes the SDRAM device */
   __HAL_RCC_CRC_CLK_ENABLE(); /* Enable the CRC Module */
   GUI_Init();
-  GUI_DispStringAt("Starting...", 0, 0);
+  //GUI_DispStringAt("Starting...", 0, 0);
+
+  while (1) {
+    MPU6050_Read_All(&i2c1, &mpu6050_data);
+    //sprintf(outbuf, "X: %.3f Y: %.3f Z: %.3f", mpu6050_data.Gx, mpu6050_data.Gy, mpu6050_data.Gz);
+    sprintf(outbuf, "X: %.3f Y: %.3f", mpu6050_data.KalmanAngleX, mpu6050_data.KalmanAngleY);
+    GUI_DispStringAt(outbuf, 0, 0);
+    HAL_Delay(2000);
+  }
 
   /* Infinite loop */
   for(;;) {

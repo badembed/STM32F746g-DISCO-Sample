@@ -142,6 +142,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/Core/Src/main.c</locationURI>
 		</link>
 		<link>
+			<name>Application/User/Core/mpu6050.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/Core/Src/mpu6050.c</locationURI>
+		</link>
+		<link>
 			<name>Application/User/Core/stm32f7xx_it.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/Core/Src/stm32f7xx_it.c</locationURI>
