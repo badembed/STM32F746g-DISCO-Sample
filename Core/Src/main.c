@@ -234,23 +234,21 @@ int main(void)
   GUI_Init();
   //GUI_DispStringAt("Starting...", 0, 0);
 
-  while (1) {
-    MPU6050_Read_All(&i2c1, &mpu6050_data);
-    //sprintf(outbuf, "X: %.3f Y: %.3f Z: %.3f", mpu6050_data.Gx, mpu6050_data.Gy, mpu6050_data.Gz);
-    sprintf(outbuf, "X: %.3f Y: %.3f", mpu6050_data.KalmanAngleX, mpu6050_data.KalmanAngleY);
-    GUI_DispStringAt(outbuf, 0, 0);
-    HAL_Delay(2000);
-  }
-
   /* Infinite loop */
   for(;;) {
     HAL_UART_Receive(&uart1, inbuf, 1, 0xFFFF);
+
+    MPU6050_Read_All(&i2c1, &mpu6050_data);
+    sprintf(outbuf, "X: %.3f Y: %.3f", mpu6050_data.KalmanAngleX, mpu6050_data.KalmanAngleY);
+    GUI_DispStringAt(outbuf, 0, 0);
+
     HAL_SPI_Receive_IT(&spi2, outbuf, 1);
     HAL_SPI_Transmit(&spi5, inbuf, 1, HAL_MAX_DELAY);
 
     while (wTransferState != TRANSFER_COMPLETE) {};
     HAL_UART_Transmit(&uart1, outbuf, 1, 0xFFFF);
     wTransferState = TRANSFER_WAIT;
+    //HAL_Delay(2000);
   }
 }
 
